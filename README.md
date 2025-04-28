@@ -31,7 +31,7 @@ By analyzing these patterns, we can start decoding the packets using tools like 
 > [!Warning]
 > Note that capturing packets on a local environment can be challenging due to the **loopback** interface (127.0.0.1).
 
----
+## Assembly for easier packets debug
 
 Alternatively, on Windows, we can use **Win32dbg** with a compiled version of the game to identify frequently called functions in the assembly code. By letting the game idle, we can filter out less relevant addresses, and by performing actions, we can spot recurring addresses related to packet handling, UI, or the main game loop.
 
@@ -77,7 +77,7 @@ we do something like :
 By editing assembly.
 
 
----
+## Defines StC and CtS
 
 Having access to the server source code can speed up this process. For example, we might find packet headers like:
 
@@ -93,6 +93,8 @@ enum class PacketType : uint8_t {
     PLAYER_DISCONNECTED = 0x7
 };
 ```
+
+## Network interactions 
 
 With this information, we can reconstruct the client’s network logic like:
 
@@ -117,6 +119,8 @@ json connect_data = {
 return send_packet(PacketType::CONNECT, connect_data);
 ```
 
+## Callbacks
+We can define plenty of callbacks depends StC :
 To handle incoming packets, it’s best to register callbacks for specific packet types or actions:
 
 ```c++
@@ -138,8 +142,9 @@ int main() {
     net.register_callback(PacketType::WAIT_TURN, on_wait_turn);
 }
 ```
-C++ makes callbacks easier to setup, and Hooks are easier to setup too if you inject code into game.
 
+## Results
+C++ makes callbacks easier to setup, and Hooks are easier to setup too if you inject code into game.
 This approach allows us to react to server actions, update the game state, and automate gameplay.
 
 > [!TIP]
