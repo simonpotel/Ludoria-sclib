@@ -1,6 +1,7 @@
 #include "Network.h"
 #include "StC.h"
 #include "utils/Logger.h"
+#include "ui/GameUI.h"
 #include <iostream>
 #include <fstream>
 #include <stdexcept>
@@ -10,6 +11,9 @@
 #include <cstring>
 #include <cerrno>
 #include <thread>
+
+// declare the global game_ui pointer (defined in main.cpp)
+extern std::unique_ptr<GameUI> game_ui;
 
 Network::Network() {
     // load the server config
@@ -184,16 +188,33 @@ void Network::packet_receiver_loop(StC* stc) {
                 std::string packet_str = partial_data.substr(0, pos); // get the packet string
                 partial_data.erase(0, pos + 1); // erase the packet string from the partial data
                 
+                // log received packet string to console
+                if (game_ui) {
+                    game_ui->add_packet_log("[RECV] Raw: " + packet_str);
+                }
+                
                 try {
                     json packet = json::parse(packet_str); // parse the packet string
-                    int type = packet["type"].get<int>(); // get the packet type
-                    json data = packet["data"]; // get the packet data
+                    int type_int = packet["type"].get<int>();
+                    json data = packet["data"];
+                    PacketType type = static_cast<PacketType>(type_int);
                     
-                    stc->process_packet(static_cast<PacketType>(type), data); // process the packet
+                    // log parsed packet to console
+                    if (game_ui) {
+                         game_ui->add_packet_log("[RECV] Parsed Type: " + std::to_string(type_int) + ", Data: " + data.dump());
+                    }
+                    
+                    stc->process_packet(type, data); // process the packet
                 } catch (const json::exception& e) {
-                    Logger::error("Network", "json parsing error: " + std::string(e.what())); // log the json parsing error
+                    Logger::error("Network", "json parsing error: " + std::string(e.what()));
+                    if (game_ui) {
+                        game_ui->add_packet_log("[RECV ERROR] JSON Parse: " + std::string(e.what()));
+                    }
                 } catch (const std::exception& e) {
-                    Logger::error("Network", "Error processing packet: " + std::string(e.what())); // log the error processing packet
+                    Logger::error("Network", "error processing packet: " + std::string(e.what()));
+                    if (game_ui) {
+                         game_ui->add_packet_log("[RECV ERROR] Processing: " + std::string(e.what()));
+                    }
                 }
             }
         }
@@ -218,18 +239,29 @@ bool Network::send_packet(PacketType type, const json& data) {
         // create a message to send
         std::string message_to_send = packet_json.dump() + "\n";
 
+        // log packet being sent to console
+        if (game_ui) {
+            game_ui->add_packet_log("[SEND] Type: " + std::to_string(static_cast<int>(type)) + ", Data: " + data.dump());
+        }
+
         Logger::info("Network", "sending packet type: " + std::to_string(static_cast<int>(type))); // log the sending packet type
 
         ssize_t bytes_sent = send(sock, message_to_send.c_str(), message_to_send.length(), MSG_NOSIGNAL); // send the message to the server
 
         if (bytes_sent < 0) {
             Logger::error("Network", "send failed: " + std::string(strerror(errno))); // log the send failed
+            if (game_ui) {
+                game_ui->add_packet_log("[SEND ERROR] OS Error: " + std::string(strerror(errno)));
+            }
             return false;
         }
         
         if (static_cast<size_t>(bytes_sent) != message_to_send.length()) {
             // if the bytes sent are not the same as the message to send, log the partial send
             Logger::warning("Network", "partial send happened. sent " + std::to_string(bytes_sent) + " of " + std::to_string(message_to_send.length()) + " bytes.");
+            if (game_ui) {
+                 game_ui->add_packet_log("[SEND ERROR] Partial Send");
+            }
             return false;
         }
 
@@ -238,11 +270,17 @@ bool Network::send_packet(PacketType type, const json& data) {
     catch (const json::exception& e) {
         // if the json error occurs, log the json error before sending
         Logger::error("Network", "json error before sending: " + std::string(e.what()));
+        if (game_ui) {
+            game_ui->add_packet_log("[SEND ERROR] JSON Exception: " + std::string(e.what()));
+        }
         return false;
     } 
     catch (const std::exception& e) {
         // if the error occurs, log the error before sending
         Logger::error("Network", "error preparing packet: " + std::string(e.what()));
+        if (game_ui) {
+            game_ui->add_packet_log("[SEND ERROR] Prep Exception: " + std::string(e.what()));
+        }
         return false;
     }
 } 
