@@ -4,6 +4,7 @@
 
 <img src="assets/packet_console.png">
 
+
 ## Project Overview
 
 Ludoria is a board **game** developed as a final project for the first year @SUPINFO. The game features 3 mini-games and allows players to compete against friends on the same **computer**, play against a **bot**, or challenge someone over the **network**.
@@ -31,7 +32,7 @@ By analyzing these patterns, we can start decoding the packets using tools like 
 > [!Warning]
 > Note that capturing packets on a local environment can be challenging due to the **loopback** interface (127.0.0.1).
 
-## Assembly for easier packets debug
+## Hook Capture
 
 Alternatively, on Windows, we can use **Win32dbg** with a compiled version of the game to identify frequently called functions in the assembly code. By letting the game idle, we can filter out less relevant addresses, and by performing actions, we can spot recurring addresses related to packet handling, UI, or the main game loop.
 
